@@ -1,0 +1,68 @@
+# Builds EXAM MASTER and publishes it to GitHub Pages on every push to `main`.
+# One-time setup: repository Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+name: Deploy EXAM MASTER to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # Reads the repository's Pages settings; its `base_path` output is "/REPO" for a project site and "" for a user site or custom domain.
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+
+      # Firebase web config comes from .env.production (committed; these are public identifiers, not secrets).
+      - name: Build
+        env:
+          PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: |
+          BASE_PATH="${PAGES_BASE_PATH%/}/"
+          export BASE_PATH
+          echo "Building with BASE_PATH=$BASE_PATH"
+          npm run build
+
+      # A fresh id inside sw.js on every deploy makes browsers update the installed app's service worker and caches by themselves.
+      - name: Stamp the service worker with this deploy's id
+        run: sed -i "s/__BUILD_ID__/${GITHUB_SHA::12}/" dist/sw.js
+
+      # GitHub Pages serves 404.html for unknown paths; a copy of index.html there lets the SPA router handle deep links and refreshes.
+      - name: Add SPA fallback (404.html)
+        run: cp dist/index.html dist/404.html
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

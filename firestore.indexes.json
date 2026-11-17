@@ -1,0 +1,23 @@
+{
+  "indexes": [
+    { "collectionGroup": "questionBank", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "institutionId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "questionBank", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "institutionId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "ASCENDING" }] },
+    { "collectionGroup": "questionPapers", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "institutionId", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "questionPapers", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "institutionId", "order": "ASCENDING" }, { "fieldPath": "createdBy", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "questionPapers", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "institutionId", "order": "ASCENDING" }, { "fieldPath": "status", "order": "ASCENDING" }, { "fieldPath": "updatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "questionPapers", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "institutionId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "ASCENDING" }] },
+    { "collectionGroup": "notifications", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "userId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "activityLogs", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "institutionId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "exports", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "institutionId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "exports", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "institutionId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "ASCENDING" }] },
+    { "collectionGroup": "imports", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "institutionId", "order": "ASCENDING" }, { "fieldPath": "createdAt", "order": "DESCENDING" }] }
+  ],
+  "fieldOverrides": [
+    { "collectionGroup": "questionBank", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "questionBank", "fieldPath": "searchText", "indexes": [] },
+    { "collectionGroup": "history", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "items", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "answerKeys", "fieldPath": "data", "indexes": [] },
+    { "collectionGroup": "versions", "fieldPath": "snapshot", "indexes": [] }
+  ]
+}

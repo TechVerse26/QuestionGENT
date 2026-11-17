@@ -1,0 +1,39 @@
+.paper-stack { display: flex; flex-direction: column; align-items: center; gap: 10mm; }
+.paper-page { position: relative; box-sizing: border-box; flex: none; overflow: hidden; background: #fff; color: #111; border: 1px solid #c4cec7; }
+.paper-page .rt p { margin: 0 0 0.15em; }
+.paper-content { position: relative; z-index: 1; }
+.paper-measure { position: absolute; left: -100000px; top: 0; visibility: hidden; pointer-events: none; box-sizing: content-box; }
+.paper-border { position: absolute; pointer-events: none; z-index: 0; box-sizing: border-box; }
+.paper-wm { position: absolute; inset: 0; z-index: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; white-space: nowrap; font-weight: 700; font-size: 64px; color: #000; transform: rotate(-30deg); }
+.paper-footer { position: absolute; z-index: 1; display: flex; align-items: flex-end; justify-content: space-between; gap: 8mm; font-size: 0.8em; }
+.q-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 2mm; align-items: start; }
+.q-no { min-width: 7mm; font-weight: 600; }
+.q-marks { white-space: nowrap; font-weight: 600; }
+.q-extra { padding-left: 9mm; }
+.opts { display: grid; column-gap: 5mm; row-gap: 0.8mm; padding-left: 9mm; margin-top: 0.6mm; }
+.opt { display: flex; gap: 1.5mm; min-width: 0; }
+.opt-l { flex: none; }
+.opt-b { min-width: 0; }
+.sub-row { display: grid; grid-template-columns: 9mm minmax(0, 1fr) auto; column-gap: 2mm; padding-left: 7mm; align-items: start; }
+.cols2 { display: grid; grid-template-columns: 1fr 1fr; column-gap: 10mm; padding-left: 9mm; margin-top: 1mm; }
+.li-row { display: flex; gap: 2mm; padding-left: 9mm; }
+.paper-code { margin: 1mm 0 0 9mm; padding: 1.5mm 2mm; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; white-space: pre-wrap; border: 1px solid #bbb; background: #f6f6f6; }
+.paper-info-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid currentColor; border-left: 1px solid currentColor; margin-top: 2mm; }
+.paper-info-grid > div { border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; padding: 0.8mm 2mm; }
+.paper-rubric { width: calc(100% - 9mm); margin-left: 9mm; border-collapse: collapse; font-size: 0.9em; }
+.paper-rubric td { border: 1px solid #999; padding: 0.5mm 2mm; }
+
+@media print {
+  html, body { background: #fff !important; margin: 0 !important; }
+  .no-print { display: none !important; }
+  .paper-stack { gap: 0; zoom: 1 !important; display: block; }
+  .paper-page { border: none; break-after: page; page-break-after: always; margin: 0; }
+  .paper-page:last-child { break-after: auto; page-break-after: auto; }
+}
+
+@media print {
+  .print-pad { padding: 0 !important; }
+}
+
+/* contain child margins so measured atom heights equal their real layout height */
+.atom { display: flow-root; }

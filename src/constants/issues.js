@@ -1,0 +1,22 @@
+// English text of validation issue codes (translated through t() at display time)
+export const ISSUE_TEXT = {
+  no_sections: 'The paper has no sections.',
+  empty_section: 'A section has no questions.',
+  zero_marks: 'A question has zero marks.',
+  choice_exceeds: 'A section asks students to answer more questions than it contains.',
+  choice_below_mandatory: 'A section asks for fewer answers than its compulsory questions.',
+  unequal_optional: 'Optional questions in a section have different marks, so the total depends on the choice.',
+  total_mismatch: 'Questions add up to {total} marks but full marks is set to {full}.',
+  pass_exceeds: 'Pass marks are higher than full marks.',
+  missing_title: 'The paper has no exam name.',
+  empty_question: 'A question has no text.',
+  cq_no_subs: 'A stimulus question has no sub-questions.',
+  empty_sub: 'A sub-question is empty.',
+  sub_no_marks: 'A sub-question has no marks.',
+  type_not_allowed: 'A question type is not allowed in its section.',
+  mcq_options: 'An option question needs at least two non-empty options.',
+  mcq_no_answer: 'An option question has no correct answer marked.',
+  tf_no_answer: 'A true/false question has no answer.',
+  fill_no_blank: 'A fill-in-the-blanks question has no blank.',
+  matching_incomplete: 'A matching question needs at least two items on each side.',
+};

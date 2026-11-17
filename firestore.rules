@@ -1,0 +1,295 @@
+rules_version = '2';
+
+// EXAM MASTER security rules.
+// Every institution-owned document carries `institutionId`; access is decided by the caller's membership
+// document `memberships/{uid}_{institutionId}`. Role lists below mirror src/constants/roles.js.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers
+    function signedIn() { return request.auth != null; }
+    function isSuper() { return signedIn() && request.auth.token.get('superAdmin', false) == true; }
+    function emailVerified() { return signedIn() && request.auth.token.get('email_verified', false) == true; }
+    function mPath(inst) { return /databases/$(database)/documents/memberships/$(request.auth.uid + '_' + inst); }
+    function isMember(inst) { return signedIn() && exists(mPath(inst)); }
+    function roleIn(inst) { return get(mPath(inst)).data.role; }
+
+    function canViewQuestions(r) { return r in ['institution_admin', 'teacher', 'department_head', 'examination_controller', 'paper_reviewer', 'editor', 'viewer']; }
+    function canWriteQuestions(r) { return r in ['institution_admin', 'teacher', 'department_head', 'editor']; }
+    function canEditAllQuestions(r) { return r in ['institution_admin', 'department_head', 'editor']; }
+    function canDeleteQuestions(r) { return r in ['institution_admin', 'editor']; }
+    function canWritePapers(r) { return r in ['institution_admin', 'teacher', 'department_head', 'editor']; }
+    function canEditAllPapers(r) { return r in ['institution_admin', 'department_head', 'editor']; }
+    function canReviewPapers(r) { return r in ['institution_admin', 'department_head', 'examination_controller', 'paper_reviewer']; }
+    function canPublishPapers(r) { return r in ['institution_admin', 'examination_controller']; }
+    function paperFullRead(r) { return r in ['institution_admin', 'examination_controller', 'paper_reviewer', 'department_head', 'editor']; }
+    function canViewKeys(r) { return r in ['institution_admin', 'teacher', 'department_head', 'examination_controller', 'paper_reviewer', 'editor']; }
+    function canEditKeys(r) { return r in ['institution_admin', 'teacher', 'department_head', 'editor']; }
+    function canManageAcademics(r) { return r in ['institution_admin', 'department_head', 'examination_controller']; }
+    function canManageTypes(r) { return r in ['institution_admin', 'department_head', 'editor']; }
+    function canManageTemplates(r) { return r in ['institution_admin', 'teacher', 'department_head', 'examination_controller', 'editor']; }
+    function canSeeLogs(r) { return r in ['institution_admin', 'department_head', 'examination_controller']; }
+    function canVersion(r) { return canWritePapers(r) || canReviewPapers(r) || canPublishPapers(r); }
+    function isAdminOf(inst) { return signedIn() && roleIn(inst) == 'institution_admin'; }
+
+    // ------------------------------------------------------------------ users
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isSuper());
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid && request.resource.data.uid == resource.data.uid;
+      allow delete: if false;
+    }
+
+    // ----------------------------------------------------------- institutions
+    match /institutions/{inst} {
+      allow read: if signedIn() && (isSuper() || exists(mPath(inst)));
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.plan == 'free'
+        && request.resource.data.aiUsed == 0
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2;
+      allow update: if isAdminOf(inst)
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.plan == resource.data.plan
+        && request.resource.data.aiUsed == resource.data.aiUsed;
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------ memberships
+    function creatorBootstrap(d) {
+      return d.role == 'institution_admin'
+        && getAfter(/databases/$(database)/documents/institutions/$(d.institutionId)).data.createdBy == request.auth.uid;
+    }
+    function acceptsInvitation(d) {
+      let inv = get(/databases/$(database)/documents/invitations/$(d.invitationId)).data;
+      return emailVerified()
+        && inv.email == request.auth.token.email
+        && inv.status == 'pending'
+        && inv.institutionId == d.institutionId
+        && inv.role == d.role;
+    }
+
+    match /memberships/{mid} {
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isMember(resource.data.institutionId) || isSuper());
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && mid == request.auth.uid + '_' + request.resource.data.institutionId
+        && (creatorBootstrap(request.resource.data) || acceptsInvitation(request.resource.data));
+      allow update: if isAdminOf(resource.data.institutionId)
+        && resource.data.uid != request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']);
+      allow delete: if signedIn() && (resource.data.uid == request.auth.uid || isAdminOf(resource.data.institutionId));
+    }
+
+    // ------------------------------------------------------------ invitations
+    match /invitations/{iid} {
+      allow read: if signedIn()
+        && ((emailVerified() && resource.data.email == request.auth.token.email) || isAdminOf(resource.data.institutionId));
+      allow create: if isAdminOf(request.resource.data.institutionId)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.invitedBy == request.auth.uid
+        && request.resource.data.role in ['institution_admin', 'teacher', 'department_head', 'examination_controller', 'paper_reviewer', 'editor', 'viewer', 'print_operator'];
+      allow update: if signedIn() && (
+        isAdminOf(resource.data.institutionId)
+        || (emailVerified()
+            && resource.data.email == request.auth.token.email
+            && resource.data.status == 'pending'
+            && request.resource.data.status in ['accepted', 'declined']
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedBy', 'respondedAt'])));
+      allow delete: if isAdminOf(resource.data.institutionId);
+    }
+
+    // ------------------------------------- classes, subjects, examinations ...
+    function isAcademic(c) { return c in ['branches', 'departments', 'classes', 'groups', 'subjects', 'sessions', 'chapters', 'topics', 'examinations']; }
+    match /{coll}/{docId} {
+      allow read: if isAcademic(coll) && isMember(resource.data.institutionId);
+      allow create: if isAcademic(coll) && signedIn() && canManageAcademics(roleIn(request.resource.data.institutionId));
+      allow update: if isAcademic(coll) && signedIn()
+        && request.resource.data.institutionId == resource.data.institutionId
+        && canManageAcademics(roleIn(resource.data.institutionId));
+      allow delete: if isAcademic(coll) && signedIn() && canManageAcademics(roleIn(resource.data.institutionId));
+    }
+
+    // ----------------------------------------------------------- question bank
+    function canEditQuestion(d) {
+      let r = roleIn(d.institutionId);
+      return canEditAllQuestions(r) || (canWriteQuestions(r) && d.createdBy == request.auth.uid);
+    }
+    match /questionBank/{qid} {
+      allow read: if signedIn() && canViewQuestions(roleIn(resource.data.institutionId));
+      allow create: if signedIn()
+        && canWriteQuestions(roleIn(request.resource.data.institutionId))
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.status == 'active';
+      allow update: if signedIn()
+        && request.resource.data.institutionId == resource.data.institutionId
+        && request.resource.data.createdBy == resource.data.createdBy
+        && ((canViewQuestions(roleIn(resource.data.institutionId)) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['favoritedBy']))
+            || canEditQuestion(resource.data));
+      allow delete: if signedIn() && canDeleteQuestions(roleIn(resource.data.institutionId));
+
+      match /history/{hid} {
+        allow read: if signedIn() && canViewQuestions(roleIn(resource.data.institutionId));
+        allow create: if signedIn()
+          && canWriteQuestions(roleIn(request.resource.data.institutionId))
+          && request.resource.data.createdBy == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
+    // ------------------------------------------- answer keys (separate, protected)
+    match /answerKeys/{kid} {
+      allow read: if signedIn() && canViewKeys(roleIn(resource.data.institutionId));
+      allow create: if signedIn() && canEditKeys(roleIn(request.resource.data.institutionId));
+      allow update: if signedIn()
+        && request.resource.data.institutionId == resource.data.institutionId
+        && canEditKeys(roleIn(resource.data.institutionId));
+      allow delete: if signedIn() && canEditKeys(roleIn(resource.data.institutionId));
+    }
+
+    // ---------------------------------------------------------- question papers
+    function paperReadable(d) {
+      let r = roleIn(d.institutionId);
+      return paperFullRead(r)
+        || (r == 'teacher' && (d.createdBy == request.auth.uid || d.status in ['approved', 'published']))
+        || (r in ['viewer', 'print_operator'] && d.status in ['approved', 'published']);
+    }
+    function paperUpdate(o, n) {
+      let r = roleIn(o.institutionId);
+      let canEdit = canEditAllPapers(r) || (r == 'teacher' && o.createdBy == request.auth.uid);
+      let changed = n.status != o.status;
+      let statusOnly = n.diff(o).affectedKeys().hasOnly(['status', 'updatedAt', 'reviewNote', 'reviewedBy']);
+      return (canEdit && o.status == 'draft' && (!changed || n.status in ['draft', 'review']))
+        || (canEdit && changed && statusOnly && o.status == 'review' && n.status == 'draft')
+        || (changed && statusOnly && canReviewPapers(r)
+            && ((o.status == 'review' && n.status in ['approved', 'draft']) || (o.status == 'approved' && n.status == 'draft')))
+        || (changed && statusOnly && canPublishPapers(r)
+            && ((o.status == 'approved' && n.status == 'published') || (o.status == 'published' && n.status == 'approved')));
+    }
+    function paperDelete(d) {
+      let r = roleIn(d.institutionId);
+      return r == 'institution_admin' || (canWritePapers(r) && d.createdBy == request.auth.uid && d.status == 'draft');
+    }
+    // Items and versions live under the paper; the parent decides who may read or edit them.
+    function itemReadable(pid, d) {
+      let r = roleIn(d.institutionId);
+      let p = get(/databases/$(database)/documents/questionPapers/$(pid)).data;
+      return p.institutionId == d.institutionId
+        && (paperFullRead(r)
+            || (r == 'teacher' && (p.createdBy == request.auth.uid || p.status in ['approved', 'published']))
+            || (r in ['viewer', 'print_operator'] && p.status in ['approved', 'published']));
+    }
+    function paperEditable(pid, inst) {
+      let r = roleIn(inst);
+      let p = get(/databases/$(database)/documents/questionPapers/$(pid)).data;
+      return p.institutionId == inst && p.status == 'draft'
+        && (canEditAllPapers(r) || (r == 'teacher' && p.createdBy == request.auth.uid));
+    }
+
+    match /questionPapers/{pid} {
+      allow read: if signedIn() && paperReadable(resource.data);
+      allow create: if signedIn()
+        && canWritePapers(roleIn(request.resource.data.institutionId))
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.status == 'draft';
+      allow update: if signedIn()
+        && request.resource.data.institutionId == resource.data.institutionId
+        && request.resource.data.createdBy == resource.data.createdBy
+        && paperUpdate(resource.data, request.resource.data);
+      allow delete: if signedIn() && paperDelete(resource.data);
+
+      match /items/{iid} {
+        allow read: if signedIn() && itemReadable(pid, resource.data);
+        allow create: if signedIn() && paperEditable(pid, request.resource.data.institutionId);
+        allow update: if signedIn()
+          && request.resource.data.institutionId == resource.data.institutionId
+          && paperEditable(pid, resource.data.institutionId);
+        allow delete: if signedIn() && (paperEditable(pid, resource.data.institutionId) || isAdminOf(resource.data.institutionId));
+      }
+
+      match /versions/{vid} {
+        allow read: if signedIn() && itemReadable(pid, resource.data);
+        allow create: if signedIn()
+          && canVersion(roleIn(request.resource.data.institutionId))
+          && request.resource.data.createdBy == request.auth.uid;
+        allow update: if false;
+        allow delete: if isAdminOf(resource.data.institutionId);
+      }
+    }
+
+    // --------------------------------------------------------------- templates
+    match /paperTemplates/{tid} {
+      allow read: if isMember(resource.data.institutionId);
+      allow create: if signedIn()
+        && canManageTemplates(roleIn(request.resource.data.institutionId))
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if signedIn()
+        && request.resource.data.institutionId == resource.data.institutionId
+        && (isAdminOf(resource.data.institutionId)
+            || (canManageTemplates(roleIn(resource.data.institutionId)) && resource.data.createdBy == request.auth.uid));
+      allow delete: if signedIn()
+        && (isAdminOf(resource.data.institutionId)
+            || (canManageTemplates(roleIn(resource.data.institutionId)) && resource.data.createdBy == request.auth.uid));
+    }
+
+    match /questionTypes/{tid} {
+      allow read: if isMember(resource.data.institutionId);
+      allow create: if signedIn()
+        && canManageTypes(roleIn(request.resource.data.institutionId))
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if signedIn()
+        && request.resource.data.institutionId == resource.data.institutionId
+        && canManageTypes(roleIn(resource.data.institutionId));
+      allow delete: if signedIn() && canManageTypes(roleIn(resource.data.institutionId));
+    }
+
+    // ----------------------------------------------- notifications and logs
+    match /notifications/{nid} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isMember(request.resource.data.institutionId)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.read == false
+        && exists(/databases/$(database)/documents/memberships/$(request.resource.data.userId + '_' + request.resource.data.institutionId));
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /activityLogs/{lid} {
+      allow read: if signedIn() && canSeeLogs(roleIn(resource.data.institutionId));
+      allow create: if isMember(request.resource.data.institutionId) && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /exports/{eid} {
+      allow read: if isMember(resource.data.institutionId);
+      allow create: if isMember(request.resource.data.institutionId) && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /imports/{iid} {
+      allow read: if isMember(resource.data.institutionId);
+      allow create: if isMember(request.resource.data.institutionId) && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------- billing (written only by Cloud Functions)
+    match /subscriptions/{iid} {
+      allow read: if isAdminOf(iid);
+      allow write: if false;
+    }
+    match /payments/{payId} {
+      allow read: if isAdminOf(resource.data.institutionId);
+      allow write: if false;
+    }
+
+    match /systemSettings/{sid} {
+      allow read: if signedIn();
+      allow write: if isSuper();
+    }
+
+    // everything else (rateLimits, ...) is server-only
+  }
+}

@@ -1,0 +1,1 @@
+export const INSTITUTION_TYPES = [['school', 'School'], ['college', 'College'], ['university', 'University'], ['madrasa', 'Madrasa'], ['coaching', 'Coaching center'], ['academy', 'Private academy'], ['training', 'Training center'], ['other', 'Other']];
