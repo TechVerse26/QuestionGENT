@@ -7,3 +7,19 @@ functions/.env*
 *.log
 .firebase
 .vercel
+
+# Next.js / tooling
+.next
+out
+coverage
+playwright-report
+test-results
+.DS_Store
+
+# Secrets and backups must never be committed
+.env*.local
+*.pem
+*.p12
+serviceAccount*.json
+*-firebase-adminsdk-*.json
+backups/

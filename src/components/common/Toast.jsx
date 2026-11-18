@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { CircleCheck, TriangleAlert, Info } from 'lucide-react';
+import { useI18n } from '../../i18n/index.jsx';
+import { QUOTA_MESSAGE, isQuotaMessage } from '../../utils/firebaseErrors.js';
 
 const Ctx = createContext({ success() {}, error() {}, info() {} });
 const TONES = {
@@ -9,13 +11,14 @@ const TONES = {
 };
 
 export function ToastProvider({ children }) {
+  const { t: tr } = useI18n();
   const [list, setList] = useState([]);
   const push = useCallback((kind, text) => {
     const id = Math.random().toString(36).slice(2);
     setList((l) => [...l, { id, kind, text }]);
     setTimeout(() => setList((l) => l.filter((x) => x.id !== id)), kind === 'error' ? 7000 : 3500);
   }, []);
-  const api = useMemo(() => ({ success: (t) => push('success', t), error: (t) => push('error', t), info: (t) => push('info', t) }), [push]);
+  const api = useMemo(() => ({ success: (t) => push('success', t), error: (t) => push('error', isQuotaMessage(t) ? tr(QUOTA_MESSAGE) : t), info: (t) => push('info', t) }), [push, tr]);
   return (
     <Ctx.Provider value={api}>
       {children}

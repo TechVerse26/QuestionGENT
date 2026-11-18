@@ -794,5 +794,6 @@ export default {
  "No Gemini model is available for this key.": "এই কী দিয়ে কোনো Gemini মডেল পাওয়া যাচ্ছে না।",
  "Google returned an error ({n}). Please try again.": "Google একটি ত্রুটি দেখিয়েছে ({n})। আবার চেষ্টা করুন।",
  "Cancelled.": "বাতিল হয়েছে।",
- "Unsupported question type.": "প্রশ্নের এই ধরন সমর্থিত নয়।"
+ "Unsupported question type.": "প্রশ্নের এই ধরন সমর্থিত নয়।",
+ "The free daily database limit is used up. Loading and saving are paused until it resets (around 1–2 PM Bangladesh time). Changes made now may not be saved.": "বিনামূল্যের দৈনিক ডেটাবেস সীমা শেষ হয়ে গেছে। রিসেট না হওয়া পর্যন্ত (বাংলাদেশ সময় প্রায় দুপুর ১–২টা) লোড ও সেভ বন্ধ থাকবে। এখন করা পরিবর্তন সেভ নাও হতে পারে।",
 };

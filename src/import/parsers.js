@@ -22,7 +22,8 @@ function loadPdfJs() {
 
 async function pdfText(file) {
   const lib = await loadPdfJs();
-  const doc = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+  // isEvalSupported:false is the documented mitigation for CVE-2024-4367 (script execution through a crafted PDF font)
+  const doc = await lib.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
   let text = '';
   for (let p = 1; p <= doc.numPages; p++) {
     const content = await (await doc.getPage(p)).getTextContent();

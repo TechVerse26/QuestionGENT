@@ -1,3 +1,5 @@
+> **Project status (2026-11-18):** the enterprise upgrade is in progress. Start with [`docs/HANDOFF.md`](docs/HANDOFF.md), then `docs/phase-1/` (audit, architecture, migration plan, roadmap) and `docs/phase-2/` (zero-cost decisions and progress). Run `npm test`.
+
 # EXAM MASTER
 
 Question paper builder, question bank and examination management for schools, colleges, madrasas, coaching centers and teachers.
